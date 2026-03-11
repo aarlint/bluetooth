@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#08090c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>BT Debug</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@200;300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #08090c;
+  --bg-card: #0f1117;
+  --bg-card-hover: #161922;
+  --border: #1a1d28;
+  --border-hover: #2a2f3e;
+  --text-primary: #e8eaf0;
+  --text-secondary: #6b7084;
+  --text-dim: #3d4155;
+  --accent: #3fc1f0;
+  --accent-soft: rgba(63, 193, 240, 0.12);
+  --accent-text: #7dd8f5;
+  --accent-green: #22c55e;
+  --accent-red: #ef4444;
+  --accent-yellow: #eab308;
+  --accent-purple: #a855f7;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.logo-icon { font-size: 1.2rem; margin-right: 4px; }
+.header-status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+.status-dot.connected {
+  background: var(--accent-green);
+  box-shadow: 0 0 8px #22c55e88;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Main content */
+.main {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  padding-bottom: calc(80px + var(--safe-bottom));
+}
+
+/* Scan button */
+.scan-section {
+  margin-bottom: 20px;
+}
+.scan-btn {
+  width: 100%;
+  padding: 14px 20px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s;
+}
+.scan-btn:hover { filter: brightness(1.1); }
+.scan-btn:active { transform: scale(0.98); }
+.scan-btn:disabled {
+  background: var(--border-hover);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+.scan-btn.disconnect {
+  background: var(--accent-red);
+}
+
+/* Device card */
+.device-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.device-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.device-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--accent-soft);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+.device-info { flex: 1; }
+.device-name {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 2px;
+}
+.device-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.device-rssi {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  background: var(--bg-card-hover);
+  border-radius: 6px;
+}
+
+/* Services section */
+.section-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-count {
+  background: var(--border-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.6rem;
+}
+
+/* Service card */
+.service-card {
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.service-header {
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.15s;
+}
+.service-header:hover { background: var(--border); }
+.service-icon {
+  font-size: 1rem;
+  width: 24px;
+  text-align: center;
+}
+.service-name {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+.service-uuid {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  background: var(--bg-deep);
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+.service-toggle {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  transition: transform 0.2s;
+}
+.service-toggle.open { transform: rotate(90deg); }
+
+/* Characteristics */
+.characteristics {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  display: none;
+}
+.characteristics.open { display: block; }
+
+.char-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.char-item:last-child { margin-bottom: 0; }
+
+.char-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.char-info { flex: 1; }
+.char-name {
+  font-weight: 500;
+  font-size: 0.8rem;
+  margin-bottom: 2px;
+}
+.char-uuid {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+}
+
+/* Property badges */
+.char-props {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.prop-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.55rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: var(--border-hover);
+  color: var(--text-secondary);
+}
+.prop-badge.read { background: rgba(34, 197, 94, 0.15); color: var(--accent-green); }
+.prop-badge.write { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.prop-badge.notify { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+.prop-badge.indicate { background: rgba(234, 179, 8, 0.15); color: var(--accent-yellow); }
+
+/* Value display */
+.char-value {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.value-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.value-hex {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent-text);
+  word-break: break-all;
+}
+.value-ascii {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.value-int {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent-green);
+  margin-top: 4px;
+}
+
+/* Action buttons */
+.char-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.char-btn {
+  padding: 6px 12px;
+  background: var(--border-hover);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.char-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+.char-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.char-btn.write-btn:hover {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* Write modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 500px;
+  padding: 20px;
+  padding-bottom: calc(20px + var(--safe-bottom));
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.modal-title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 4px;
+}
+.modal-close:hover { color: var(--text-primary); }
+
+.write-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+.write-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.write-input::placeholder { color: var(--text-dim); }
+
+.write-format {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.format-btn {
+  flex: 1;
+  padding: 10px;
+  background: var(--bg-card-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.format-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.write-submit {
+  width: 100%;
+  padding: 14px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+}
+.write-submit:hover { filter: brightness(1.1); }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+}
+.empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
+.empty-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.empty-desc {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+/* Log section */
+.log-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.log-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 10px;
+}
+.log-entry {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-time { color: var(--text-dim); flex-shrink: 0; }
+.log-msg { flex: 1; word-break: break-all; }
+.log-entry.error .log-msg { color: var(--accent-red); }
+.log-entry.success .log-msg { color: var(--accent-green); }
+.log-entry.notify .log-msg { color: var(--accent-purple); }
+
+/* Not supported */
+.not-supported {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--accent-red);
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+}
+.not-supported-title {
+  color: var(--accent-red);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.not-supported-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Desktop */
+@media (min-width: 768px) {
+  .main { max-width: 600px; margin: 0 auto; }
+  .modal-overlay { align-items: center; }
+  .modal-content { border-radius: 16px; max-width: 450px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <span class="logo"><span class="logo-icon">📡</span> BT Debug</span>
+    <div class="header-status" id="headerStatus">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Disconnected</span>
+    </div>
+  </header>
+
+  <main class="main">
+    <div id="notSupported" class="not-supported" style="display:none">
+      <div class="not-supported-title">Web Bluetooth Not Supported</div>
+      <div class="not-supported-desc">This browser doesn't support Web Bluetooth. Try Chrome on desktop, Android, or use Bluefy on iOS.</div>
+    </div>
+
+    <div id="content">
+      <div class="scan-section">
+        <button class="scan-btn" id="scanBtn" onclick="handleScan()">
+          <span>📡</span> Scan for Devices
+        </button>
+      </div>
+
+      <div id="deviceSection" style="display:none">
+        <div class="device-card">
+          <div class="device-header">
+            <div class="device-icon" id="deviceIcon">📱</div>
+            <div class="device-info">
+              <div class="device-name" id="deviceName">Device Name</div>
+              <div class="device-id" id="deviceId">ID</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">
+          Services <span class="section-count" id="serviceCount">0</span>
+        </div>
+        <div id="servicesList"></div>
+      </div>
+
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon">📡</div>
+        <div class="empty-title">No Device Connected</div>
+        <div class="empty-desc">Tap "Scan for Devices" to connect to a Bluetooth device and explore its services.</div>
+      </div>
+
+      <div class="log-section">
+        <div class="section-title">Activity Log</div>
+        <div class="log-container" id="logContainer">
+          <div class="log-entry">
+            <span class="log-time">--:--:--</span>
+            <span class="log-msg">Ready to scan...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Write Modal -->
+<div class="modal-overlay" id="writeModal" style="display:none" onclick="if(event.target===this)closeWriteModal()">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="modal-title">Write Value</span>
+      <button class="modal-close" onclick="closeWriteModal()">×</button>
+    </div>
+    <input type="text" class="write-input" id="writeInput" placeholder="Enter value...">
+    <div class="write-format">
+      <button class="format-btn active" data-format="hex" onclick="setWriteFormat('hex')">Hex</button>
+      <button class="format-btn" data-format="ascii" onclick="setWriteFormat('ascii')">ASCII</button>
+      <button class="format-btn" data-format="int" onclick="setWriteFormat('int')">Integer</button>
+    </div>
+    <button class="write-submit" onclick="submitWrite()">Write</button>
+  </div>
+</div>
+
+<script>
+// State
+let device = null;
+let server = null;
+let services = [];
+let characteristics = new Map();
+let activeNotifications = new Set();
+let writeTarget = null;
+let writeFormat = 'hex';
+
+// Known service/characteristic names
+const KNOWN_SERVICES = {
+  '00001800-0000-1000-8000-00805f9b34fb': { name: 'Generic Access', icon: '🔓' },
+  '00001801-0000-1000-8000-00805f9b34fb': { name: 'Generic Attribute', icon: '📋' },
+  '0000180a-0000-1000-8000-00805f9b34fb': { name: 'Device Information', icon: 'ℹ️' },
+  '0000180f-0000-1000-8000-00805f9b34fb': { name: 'Battery Service', icon: '🔋' },
+  '00001810-0000-1000-8000-00805f9b34fb': { name: 'Blood Pressure', icon: '❤️' },
+  '00001816-0000-1000-8000-00805f9b34fb': { name: 'Cycling Speed/Cadence', icon: '🚴' },
+  '0000181a-0000-1000-8000-00805f9b34fb': { name: 'Environmental Sensing', icon: '🌡️' },
+  '0000181c-0000-1000-8000-00805f9b34fb': { name: 'User Data', icon: '👤' },
+  '0000181d-0000-1000-8000-00805f9b34fb': { name: 'Weight Scale', icon: '⚖️' },
+  '00001812-0000-1000-8000-00805f9b34fb': { name: 'HID', icon: '🎮' },
+  '0000fe95-0000-1000-8000-00805f9b34fb': { name: 'Xiaomi', icon: '📱' },
+};
+
+const KNOWN_CHARACTERISTICS = {
+  '00002a00-0000-1000-8000-00805f9b34fb': 'Device Name',
+  '00002a01-0000-1000-8000-00805f9b34fb': 'Appearance',
+  '00002a19-0000-1000-8000-00805f9b34fb': 'Battery Level',
+  '00002a24-0000-1000-8000-00805f9b34fb': 'Model Number',
+  '00002a25-0000-1000-8000-00805f9b34fb': 'Serial Number',
+  '00002a26-0000-1000-8000-00805f9b34fb': 'Firmware Revision',
+  '00002a27-0000-1000-8000-00805f9b34fb': 'Hardware Revision',
+  '00002a28-0000-1000-8000-00805f9b34fb': 'Software Revision',
+  '00002a29-0000-1000-8000-00805f9b34fb': 'Manufacturer Name',
+};
+
+// Check support
+if (!navigator.bluetooth) {
+  document.getElementById('notSupported').style.display = 'block';
+  document.getElementById('content').style.display = 'none';
+}
+
+// Logging
+function log(msg, type = '') {
+  const container = document.getElementById('logContainer');
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  entry.innerHTML = `<span class="log-time">${time}</span><span class="log-msg">${msg}</span>`;
+  container.appendChild(entry);
+  container.scrollTop = container.scrollHeight;
+}
+
+// Scan and connect
+async function handleScan() {
+  if (device && device.gatt.connected) {
+    log('Disconnecting...');
+    device.gatt.disconnect();
+    return;
+  }
+
+  try {
+    log('Scanning for devices...');
+    device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: ['generic_access', 'device_information', 'battery_service']
+    });
+
+    log(`Selected: ${device.name || 'Unknown'}`, 'success');
+    
+    device.addEventListener('gattserverdisconnected', onDisconnect);
+    
+    await connectDevice();
+  } catch (err) {
+    log(`Scan error: ${err.message}`, 'error');
+  }
+}
+
+async function connectDevice() {
+  try {
+    log('Connecting to GATT server...');
+    server = await device.gatt.connect();
+    log('Connected!', 'success');
+    
+    updateStatus(true);
+    await discoverServices();
+  } catch (err) {
+    log(`Connection error: ${err.message}`, 'error');
+  }
+}
+
+function onDisconnect() {
+  log('Device disconnected');
+  updateStatus(false);
+  activeNotifications.clear();
+}
+
+function updateStatus(connected) {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  const btn = document.getElementById('scanBtn');
+  const deviceSection = document.getElementById('deviceSection');
+  const emptyState = document.getElementById('emptyState');
+  
+  if (connected) {
+    dot.classList.add('connected');
+    text.textContent = device.name || 'Connected';
+    btn.innerHTML = '<span>⏹️</span> Disconnect';
+    btn.classList.add('disconnect');
+    deviceSection.style.display = 'block';
+    emptyState.style.display = 'none';
+    
+    document.getElementById('deviceName').textContent = device.name || 'Unknown Device';
+    document.getElementById('deviceId').textContent = device.id;
+  } else {
+    dot.classList.remove('connected');
+    text.textContent = 'Disconnected';
+    btn.innerHTML = '<span>📡</span> Scan for Devices';
+    btn.classList.remove('disconnect');
+    deviceSection.style.display = 'none';
+    emptyState.style.display = 'block';
+  }
+}
+
+// Discover services
+async function discoverServices() {
+  try {
+    log('Discovering services...');
+    services = await server.getPrimaryServices();
+    log(`Found ${services.length} services`, 'success');
+    
+    document.getElementById('serviceCount').textContent = services.length;
+    
+    const container = document.getElementById('servicesList');
+    container.innerHTML = '';
+    
+    for (const service of services) {
+      const serviceEl = await renderService(service);
+      container.appendChild(serviceEl);
+    }
+  } catch (err) {
+    log(`Service discovery error: ${err.message}`, 'error');
+  }
+}
+
+async function renderService(service) {
+  const uuid = service.uuid;
+  const known = KNOWN_SERVICES[uuid];
+  const name = known?.name || 'Unknown Service';
+  const icon = known?.icon || '📦';
+  const shortUuid = uuid.startsWith('0000') ? uuid.substring(4, 8).toUpperCase() : uuid.substring(0, 8);
+  
+  const div = document.createElement('div');
+  div.className = 'service-card';
+  div.innerHTML = `
+    <div class="service-header" onclick="toggleService(this)">
+      <span class="service-icon">${icon}</span>
+      <span class="service-name">${name}</span>
+      <span class="service-uuid">${shortUuid}</span>
+      <span class="service-toggle">›</span>
+    </div>
+    <div class="characteristics" data-uuid="${uuid}"></div>
+  `;
+  
+  // Pre-load characteristics
+  try {
+    const chars = await service.getCharacteristics();
+    characteristics.set(uuid, chars);
+    const charContainer = div.querySelector('.characteristics');
+    for (const char of chars) {
+      charContainer.appendChild(renderCharacteristic(char));
+    }
+  } catch (err) {
+    log(`Error loading characteristics for ${shortUuid}: ${err.message}`, 'error');
+  }
+  
+  return div;
+}
+
+function toggleService(header) {
+  const toggle = header.querySelector('.service-toggle');
+  const chars = header.nextElementSibling;
+  toggle.classList.toggle('open');
+  chars.classList.toggle('open');
+}
+
+function renderCharacteristic(char) {
+  const uuid = char.uuid;
+  const known = KNOWN_CHARACTERISTICS[uuid];
+  const name = known || 'Unknown Characteristic';
+  const shortUuid = uuid.startsWith('0000') ? uuid.substring(4, 8).toUpperCase() : uuid.substring(0, 8);
+  const props = char.properties;
+  
+  const div = document.createElement('div');
+  div.className = 'char-item';
+  div.id = `char-${uuid.replace(/-/g, '')}`;
+  
+  let propsHtml = '';
+  if (props.read) propsHtml += '<span class="prop-badge read">Read</span>';
+  if (props.write) propsHtml += '<span class="prop-badge write">Write</span>';
+  if (props.writeWithoutResponse) propsHtml += '<span class="prop-badge write">Write NR</span>';
+  if (props.notify) propsHtml += '<span class="prop-badge notify">Notify</span>';
+  if (props.indicate) propsHtml += '<span class="prop-badge indicate">Indicate</span>';
+  if (props.broadcast) propsHtml += '<span class="prop-badge">Broadcast</span>';
+  if (props.authenticatedSignedWrites) propsHtml += '<span class="prop-badge">Auth Write</span>';
+  
+  let actionsHtml = '';
+  if (props.read) actionsHtml += `<button class="char-btn" onclick="readChar('${uuid}')">📖 Read</button>`;
+  if (props.write || props.writeWithoutResponse) actionsHtml += `<button class="char-btn write-btn" onclick="openWriteModal('${uuid}')">✏️ Write</button>`;
+  if (props.notify || props.indicate) actionsHtml += `<button class="char-btn" id="notify-${uuid.replace(/-/g, '')}" onclick="toggleNotify('${uuid}')">🔔 Subscribe</button>`;
+  
+  div.innerHTML = `
+    <div class="char-header">
+      <div class="char-info">
+        <div class="char-name">${name}</div>
+        <div class="char-uuid">${shortUuid} · ${uuid}</div>
+      </div>
+    </div>
+    <div class="char-props">${propsHtml}</div>
+    <div class="char-value" id="value-${uuid.replace(/-/g, '')}" style="display:none">
+      <div class="value-label">Value</div>
+      <div class="value-hex" id="hex-${uuid.replace(/-/g, '')}">-</div>
+      <div class="value-ascii" id="ascii-${uuid.replace(/-/g, '')}"></div>
+      <div class="value-int" id="int-${uuid.replace(/-/g, '')}"></div>
+    </div>
+    <div class="char-actions">${actionsHtml}</div>
+  `;
+  
+  return div;
+}
+
+// Read characteristic
+async function readChar(uuid) {
+  try {
+    log(`Reading ${uuid.substring(4, 8)}...`);
+    const char = await findCharacteristic(uuid);
+    const value = await char.readValue();
+    displayValue(uuid, value);
+    log(`Read ${uuid.substring(4, 8)}: ${bufferToHex(value)}`, 'success');
+  } catch (err) {
+    log(`Read error: ${err.message}`, 'error');
+  }
+}
+
+async function findCharacteristic(uuid) {
+  for (const [serviceUuid, chars] of characteristics) {
+    for (const char of chars) {
+      if (char.uuid === uuid) return char;
+    }
+  }
+  throw new Error('Characteristic not found');
+}
+
+function displayValue(uuid, value) {
+  const id = uuid.replace(/-/g, '');
+  document.getElementById(`value-${id}`).style.display = 'block';
+  document.getElementById(`hex-${id}`).textContent = bufferToHex(value);
+  document.getElementById(`ascii-${id}`).textContent = 'ASCII: ' + bufferToAscii(value);
+  document.getElementById(`int-${id}`).textContent = 'Int: ' + bufferToInt(value);
+}
+
+// Notifications
+async function toggleNotify(uuid) {
+  const char = await findCharacteristic(uuid);
+  const btn = document.getElementById(`notify-${uuid.replace(/-/g, '')}`);
+  
+  if (activeNotifications.has(uuid)) {
+    await char.stopNotifications();
+    char.removeEventListener('characteristicvaluechanged', handleNotification);
+    activeNotifications.delete(uuid);
+    btn.classList.remove('active');
+    btn.innerHTML = '🔔 Subscribe';
+    log(`Unsubscribed from ${uuid.substring(4, 8)}`);
+  } else {
+    await char.startNotifications();
+    char.addEventListener('characteristicvaluechanged', handleNotification);
+    activeNotifications.add(uuid);
+    btn.classList.add('active');
+    btn.innerHTML = '🔕 Unsubscribe';
+    log(`Subscribed to ${uuid.substring(4, 8)}`, 'success');
+  }
+}
+
+function handleNotification(event) {
+  const char = event.target;
+  const value = event.target.value;
+  displayValue(char.uuid, value);
+  log(`Notify ${char.uuid.substring(4, 8)}: ${bufferToHex(value)}`, 'notify');
+}
+
+// Write
+function openWriteModal(uuid) {
+  writeTarget = uuid;
+  document.getElementById('writeInput').value = '';
+  document.getElementById('writeModal').style.display = 'flex';
+}
+
+function closeWriteModal() {
+  document.getElementById('writeModal').style.display = 'none';
+  writeTarget = null;
+}
+
+function setWriteFormat(format) {
+  writeFormat = format;
+  document.querySelectorAll('.format-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.format === format);
+  });
+}
+
+async function submitWrite() {
+  const input = document.getElementById('writeInput').value.trim();
+  if (!input || !writeTarget) return;
+  
+  try {
+    const char = await findCharacteristic(writeTarget);
+    let buffer;
+    
+    if (writeFormat === 'hex') {
+      buffer = hexToBuffer(input);
+    } else if (writeFormat === 'ascii') {
+      buffer = new TextEncoder().encode(input);
+    } else {
+      const num = parseInt(input);
+      buffer = new Uint8Array([num & 0xff]);
+    }
+    
+    if (char.properties.write) {
+      await char.writeValue(buffer);
+    } else {
+      await char.writeValueWithoutResponse(buffer);
+    }
+    
+    log(`Wrote to ${writeTarget.substring(4, 8)}: ${bufferToHex(new DataView(buffer.buffer))}`, 'success');
+    closeWriteModal();
+  } catch (err) {
+    log(`Write error: ${err.message}`, 'error');
+  }
+}
+
+// Helpers
+function bufferToHex(value) {
+  let hex = '';
+  for (let i = 0; i < value.byteLength; i++) {
+    hex += value.getUint8(i).toString(16).padStart(2, '0').toUpperCase() + ' ';
+  }
+  return hex.trim() || '-';
+}
+
+function bufferToAscii(value) {
+  let str = '';
+  for (let i = 0; i < value.byteLength; i++) {
+    const byte = value.getUint8(i);
+    str += (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
+  }
+  return str;
+}
+
+function bufferToInt(value) {
+  if (value.byteLength === 0) return '-';
+  if (value.byteLength === 1) return value.getUint8(0);
+  if (value.byteLength === 2) return value.getUint16(0, true);
+  if (value.byteLength === 4) return value.getUint32(0, true);
+  return '-';
+}
+
+function hexToBuffer(hex) {
+  hex = hex.replace(/\s/g, '');
+  const bytes = [];
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes.push(parseInt(hex.substr(i, 2), 16));
+  }
+  return new Uint8Array(bytes);
+}
+</script>
+</body>
+</html>

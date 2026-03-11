@@ -1,0 +1,17 @@
+services:
+  web:
+    build: .
+    container_name: btdebug
+    restart: unless-stopped
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-proxy"
+      - "traefik.http.routers.btdebug.rule=Host(`btdebug.arlint.dev`)"
+      - "traefik.http.routers.btdebug.service=btdebug"
+      - "traefik.http.services.btdebug.loadbalancer.server.port=80"
+
+networks:
+  traefik-proxy:
+    external: true
